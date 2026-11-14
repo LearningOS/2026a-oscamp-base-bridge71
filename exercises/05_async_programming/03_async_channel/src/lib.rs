@@ -7,7 +7,9 @@
 //! - Async `send` and `recv`
 //! - Channel closing mechanism (receiver returns None after all senders are dropped)
 
-use tokio::sync::mpsc;
+use std::fmt::format;
+
+use tokio::sync::{broadcast::channel, mpsc};
 
 /// Async producer-consumer:
 /// - Create a producer task that sends each element from items sequentially
@@ -19,7 +21,32 @@ pub async fn producer_consumer(items: Vec<String>) -> Vec<String> {
     // TODO: Spawn producer task: iterate through items, send each one
     // TODO: Spawn consumer task: loop recv until channel closes, collect results
     // TODO: Wait for consumer to complete and return results
-    todo!()
+    
+    let (tx,mut  rx) = mpsc::channel(items.len().max(1));
+
+    tokio::spawn(async move {
+        // for i in 0..10 {
+        //     if let Err(_) = tx.send(i).await {
+        //         println!("receiver dropped");
+        //         return;
+        //     }
+        // }
+        for i in items{
+            // tx.clone().send(i).await;
+
+            if let Err(_) = tx.send(i).await {
+                println!("receiver dropped");
+                return;
+            }
+        }
+    });
+
+    let mut v = vec![];
+    while let Some(i) = rx.recv().await {
+        // println!("got = {}", i);
+        v.push(i);
+    }
+    v
 }
 
 /// Fan‑in pattern: multiple producers, one consumer.
@@ -31,7 +58,29 @@ pub async fn fan_in(n_producers: usize) -> Vec<String> {
     //       Each sends format!("producer {id}: message")
     // TODO: Drop the original sender (important! otherwise channel won't close)
     // TODO: Consumer loops receiving, collects and sorts
-    todo!()
+
+    let (tx,mut  rx) = mpsc::channel(n_producers.max(1));
+
+    for i in 0..n_producers{
+        let txx = tx.clone();
+        tokio::spawn(async move {
+            // tx.clone().send(i).await;
+
+            if let Err(_) = txx.send(format!("producer {}: message",i)).await {
+                println!("receiver dropped");
+                return;
+            }
+        });
+    }
+
+    drop(tx);
+    let mut v = vec![];
+    while let Some(i) = rx.recv().await {
+        // println!("got = {}", i);
+        v.push(i);
+    }
+    v.sort();
+    v
 }
 
 #[cfg(test)]

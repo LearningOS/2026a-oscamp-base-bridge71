@@ -7,7 +7,7 @@
 //! - `Poll::Ready` and `Poll::Pending`
 //! - The role of `Waker`: notifying the runtime to poll again
 
-use std::future::Future;
+use std::future::{Future, Ready};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -33,7 +33,14 @@ impl Future for CountDown {
     type Output = &'static str;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
+        let p = self.get_mut();
+        if p.count != 0{
+            p.count -= 1;
+            cx.waker().wake_by_ref();
+            return Poll::Pending
+        }else{
+            return Poll::Ready("liftoff!")
+        }
     }
 }
 
@@ -57,7 +64,14 @@ impl Future for YieldOnce {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
+        let p = self.get_mut();
+        if !p.yielded{
+            p.yielded = true;
+            cx.waker().wake_by_ref();
+            return Poll::Pending
+        }else{
+            return Poll::Ready(())
+        }
     }
 }
 
